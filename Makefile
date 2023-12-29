@@ -1,4 +1,4 @@
-default: main bench quantize
+default: main bench quantize server
 
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
@@ -206,7 +206,7 @@ ifdef WHISPER_CUBLAS
 
 	CFLAGS      += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
 	CXXFLAGS    += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
-	LDFLAGS     += -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib
+	LDFLAGS     += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib
 	WHISPER_OBJ += ggml-cuda.o
 	NVCC        = nvcc
 	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=$(CUDA_ARCH_FLAG)
@@ -338,7 +338,7 @@ libwhisper.so: $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command talk talk-llama bench quantize lsp libwhisper.a libwhisper.so
+	rm -f *.o main stream command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -358,6 +358,9 @@ bench: examples/bench/bench.cpp $(WHISPER_OBJ)
 
 quantize: examples/quantize/quantize.cpp $(WHISPER_OBJ) $(SRC_COMMON)
 	$(CXX) $(CXXFLAGS) examples/quantize/quantize.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o quantize $(LDFLAGS)
+
+server: examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o server $(LDFLAGS)
 
 stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)

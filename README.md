@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
-Stable: [v1.5.0](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.5.0) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
+Stable: [v1.5.2](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.5.2) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
@@ -33,6 +33,7 @@ Supported platforms:
 - [x] [WebAssembly](examples/whisper.wasm)
 - [x] Windows ([MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168)]
 - [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/discussions/166)
+- [x] [docker](https://github.com/ggerganov/whisper.cpp/pkgs/container/whisper.cpp)
 
 The entire high-level implementation of the model is contained in [whisper.h](whisper.h) and [whisper.cpp](whisper.cpp).
 The rest of the code is part of the [ggml](https://github.com/ggerganov/ggml) machine learning library.
@@ -110,8 +111,8 @@ options:
   -mc N,     --max-context N     [-1     ] maximum number of text context tokens to store
   -ml N,     --max-len N         [0      ] maximum segment length in characters
   -sow,      --split-on-word     [false  ] split on word rather than on token
-  -bo N,     --best-of N         [2      ] number of best candidates to keep
-  -bs N,     --beam-size N       [-1     ] beam size for beam search
+  -bo N,     --best-of N         [5      ] number of best candidates to keep
+  -bs N,     --beam-size N       [5      ] beam size for beam search
   -wt N,     --word-thold N      [0.01   ] word timestamp probability threshold
   -et N,     --entropy-thold N   [2.40   ] entropy threshold for decoder fail
   -lpt N,    --logprob-thold N   [-1.00  ] log probability threshold for decoder fail
@@ -128,6 +129,7 @@ options:
   -fp,       --font-path         [/System/Library/Fonts/Supplemental/Courier New Bold.ttf] path to a monospace font for karaoke video
   -ocsv,     --output-csv        [false  ] output result in a CSV file
   -oj,       --output-json       [false  ] output result in a JSON file
+  -ojf,      --output-json-full  [false  ] include more information in the JSON file
   -of FNAME, --output-file FNAME [       ] output file path (without file extension)
   -ps,       --print-special     [false  ] print special tokens
   -pc,       --print-colors      [false  ] print colors
@@ -139,7 +141,8 @@ options:
   -m FNAME,  --model FNAME       [models/ggml-base.en.bin] model path
   -f FNAME,  --file FNAME        [       ] input WAV file path
   -oved D,   --ov-e-device DNAME [CPU    ] the OpenVINO device used for encode inference
-  -ls,       --log-score         [false  ] log best decoder scores of token
+  -ls,       --log-score         [false  ] log best decoder scores of tokens
+  -ng,       --no-gpu            [false  ] disable GPU
 
 
 bash ./models/download-ggml-model.sh base.en
@@ -444,6 +447,36 @@ Now build `whisper.cpp` with OpenBLAS support:
 ```
 make clean
 WHISPER_OPENBLAS=1 make -j
+```
+
+## Docker
+
+### Prerequisites
+* Docker must be installed and running on your system.
+* Create a folder to store big models & intermediate files (ex. /whisper/models)
+
+### Images
+We have two Docker images available for this project:
+
+1. `ghcr.io/ggerganov/whisper.cpp:main`: This image includes the main executable file as well as `curl` and `ffmpeg`. (platforms: `linux/amd64`, `linux/arm64`)
+2. `ghcr.io/ggerganov/whisper.cpp:main-cuda`: Same as `main` but compiled with CUDA support. (platforms: `linux/amd64`)
+
+### Usage
+
+```shell
+# download model and persist it in a local folder
+docker run -it --rm \
+  -v path/to/models:/models \
+  whisper.cpp:main "./models/download-ggml-model.sh base /models"
+# transcribe an audio file
+docker run -it --rm \
+  -v path/to/models:/models \
+  -v path/to/audios:/audios \
+  whisper.cpp:main "./main -m /models/ggml-base.bin -f /audios/jfk.wav"
+# transcribe an audio file in samples folder
+docker run -it --rm \
+  -v path/to/models:/models \
+  whisper.cpp:main "./main -m /models/ggml-base.bin -f ./samples/jfk.wav"
 ```
 
 ## Limitations
@@ -768,6 +801,7 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [bench](examples/bench) | [bench.wasm](examples/bench.wasm) | Benchmark the performance of Whisper on your machine |
 | [stream](examples/stream) | [stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
 | [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
+| [wchess](examples/wchess) | [wchess.wasm](examples/wchess) | Voice-controlled chess |
 | [talk](examples/talk) | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot |
 | [talk-llama](examples/talk-llama) | | Talk with a LLaMA bot |
 | [whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
@@ -777,6 +811,7 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
 | [livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
 | [yt-wsp.sh](examples/yt-wsp.sh) | | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
+| [server](examples/server) | | HTTP transcription server with OAI-like API |
 
 ## [Discussions](https://github.com/ggerganov/whisper.cpp/discussions)
 
