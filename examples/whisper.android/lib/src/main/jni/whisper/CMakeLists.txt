@@ -9,21 +9,20 @@ set(WHISPER_LIB_DIR ${CMAKE_SOURCE_DIR}/../../../../../../..)
 option(GGML_HOME       "whisper: Path to external GGML source" OFF)
 
 set(
-        SOURCE_FILES
-        ${WHISPER_LIB_DIR}/whisper.cpp
-        ${CMAKE_SOURCE_DIR}/jni.c
-)
+    SOURCE_FILES
+    ${WHISPER_LIB_DIR}/src/whisper.cpp
+    ${CMAKE_SOURCE_DIR}/jni.c
+    )
 
 if (NOT GGML_HOME)
     set(
         SOURCE_FILES
         ${SOURCE_FILES}
-        ${WHISPER_LIB_DIR}/ggml.c
-        ${WHISPER_LIB_DIR}/ggml-alloc.c
-        ${WHISPER_LIB_DIR}/ggml-backend.c
-        ${WHISPER_LIB_DIR}/ggml-quants.c
-
-    )
+        ${WHISPER_LIB_DIR}/ggml/src/ggml.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-alloc.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-quants.c
+        )
 endif()
 
 find_library(LOG_LIB log)
@@ -44,7 +43,6 @@ function(build_library target_name)
     endif ()
 
     if (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-
         target_compile_options(${target_name} PRIVATE -O3)
         target_compile_options(${target_name} PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
         target_compile_options(${target_name} PRIVATE -ffunction-sections -fdata-sections)
@@ -52,7 +50,6 @@ function(build_library target_name)
         target_link_options(${target_name} PRIVATE -Wl,--gc-sections)
         target_link_options(${target_name} PRIVATE -Wl,--exclude-libs,ALL)
         target_link_options(${target_name} PRIVATE -flto)
-
     endif ()
 
     if (GGML_HOME)
@@ -78,3 +75,7 @@ endif ()
 build_library("whisper") # Default target
 
 include_directories(${WHISPER_LIB_DIR})
+include_directories(${WHISPER_LIB_DIR}/src)
+include_directories(${WHISPER_LIB_DIR}/include)
+include_directories(${WHISPER_LIB_DIR}/ggml/include)
+include_directories(${WHISPER_LIB_DIR}/ggml/src)
