@@ -1,4 +1,4 @@
-#include "ggml.h"
+#include "ggml-impl.h"
 #include "ggml-backend.h"
 #include "ggml-backend-impl.h"
 #include "ggml-kompute.h"
@@ -566,7 +566,7 @@ uint32_t safe_divide(uint32_t a, uint32_t b) {
     }
     if ((a % b) != 0) {
         fprintf(stderr, "((%u %% %u) == %u) != 0\n", a, b, a % b);
-        GGML_ASSERT(!"safe_divide result would've had remainder");
+        GGML_ABORT("safe_divide result would've had remainder");
     }
     return a / b;
 }
@@ -1460,7 +1460,7 @@ static void ggml_vk_graph_compute(struct ggml_kompute_context * ctx, struct ggml
 
             if (!ggml_vk_supports_op(dst)) {
                  fprintf(stderr, "%s: error: unsupported op '%s'\n", __func__, ggml_op_desc(dst));
-                 GGML_ASSERT(!"unsupported op");
+                 GGML_ABORT("unsupported op");
             }
 
             const int32_t ne00 = src0 ? src0->ne[0] : 0;
@@ -1562,7 +1562,7 @@ static void ggml_vk_graph_compute(struct ggml_kompute_context * ctx, struct ggml
                             default:
                                 {
                                     fprintf(stderr, "%s: node %3d, op = %8s not implemented\n", __func__, i, ggml_op_name(dst->op));
-                                    GGML_ASSERT(false);
+                                    GGML_ABORT("fatal error");
                                 }
                         }
                     } break;
@@ -1745,7 +1745,7 @@ static void ggml_vk_graph_compute(struct ggml_kompute_context * ctx, struct ggml
             continue;
             not_implemented: {}
             fprintf(stderr, "%s: node %3d, op = %8s not implemented\n", __func__, i, ggml_op_name(dst->op));
-            //GGML_ASSERT(false);
+            //GGML_ABORT("fatal error");
         }
 
         // Evaluate sequence
@@ -1872,6 +1872,7 @@ static ggml_backend_buffer_i ggml_backend_kompute_buffer_i = {
     /* .free_buffer     = */ ggml_backend_kompute_buffer_free_buffer,
     /* .get_base        = */ ggml_backend_kompute_buffer_get_base,
     /* .init_tensor     = */ NULL,
+    /* .memset_tensor   = */ NULL,
     /* .set_tensor      = */ ggml_backend_kompute_buffer_set_tensor,
     /* .get_tensor      = */ ggml_backend_kompute_buffer_get_tensor,
     /* .cpy_tensor      = */ NULL,
@@ -1920,6 +1921,7 @@ ggml_backend_buffer_type_t ggml_backend_kompute_buffer_type(int device) {
         for (const auto & dev : devices) {
             vec.push_back({
                 /* .iface   = */ ggml_backend_kompute_buffer_type_interface,
+                /* .device  = */ nullptr,
                 /* .context = */ new ggml_backend_kompute_buffer_type_context(dev.index, dev.bufferAlignment, dev.maxAlloc)
             });
         }
@@ -1988,11 +1990,8 @@ static struct ggml_backend_i kompute_backend_i = {
     /* .supports_op             = */ ggml_backend_kompute_supports_op,
     /* .supports_buft           = */ ggml_backend_kompute_supports_buft,
     /* .offload_op              = */ NULL,
-    /* .event_new               = */ NULL,
-    /* .event_free              = */ NULL,
     /* .event_record            = */ NULL,
     /* .event_wait              = */ NULL,
-    /* .event_synchronize       = */ NULL,
 };
 
 static ggml_guid_t ggml_backend_kompute_guid() {
@@ -2007,6 +2006,7 @@ ggml_backend_t ggml_backend_kompute_init(int device) {
     ggml_backend_t kompute_backend = new ggml_backend {
         /* .guid      = */ ggml_backend_kompute_guid(),
         /* .interface = */ kompute_backend_i,
+        /* .device    = */ nullptr,
         /* .context   = */ s_kompute_context,
     };
 
@@ -2015,24 +2015,4 @@ ggml_backend_t ggml_backend_kompute_init(int device) {
 
 bool ggml_backend_is_kompute(ggml_backend_t backend) {
     return backend != NULL && ggml_guid_matches(backend->guid, ggml_backend_kompute_guid());
-}
-
-static ggml_backend_t ggml_backend_reg_kompute_init(const char * params, void * user_data) {
-    GGML_UNUSED(params);
-    return ggml_backend_kompute_init(intptr_t(user_data));
-}
-
-extern "C" int ggml_backend_kompute_reg_devices();
-
-int ggml_backend_kompute_reg_devices() {
-    auto devices = ggml_vk_available_devices_internal(0);
-    for (const auto & device : devices) {
-        ggml_backend_register(
-            ggml_kompute_format_name(device.index).c_str(),
-            ggml_backend_reg_kompute_init,
-            ggml_backend_kompute_buffer_type(device.index),
-            reinterpret_cast<void *>(intptr_t(device.index))
-        );
-    }
-    return devices.size();
 }
